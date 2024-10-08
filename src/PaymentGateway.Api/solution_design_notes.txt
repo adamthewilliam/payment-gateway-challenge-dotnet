@@ -1,0 +1,63 @@
+Assumptions:
+
+- The api sits inside a micro-service architecture containerised and orchestrated with Docker and Kubernetes.
+    - Horizontally scalable
+    - Itsio for load balancing
+    
+- 2 Databases, Redis for caching the Payment Details and PostgreSQL for long-term storage.
+
+POST:
+- When validation fails we return a status of "Rejected" with a 404
+- When a payment has failed to be processed and decline. Only the status of "Declined" will be provided in the result. We don't want to provide any details as to why it failed.\
+- When a payment has successfully been processed we return authorized with 200.
+
+GET:
+- When payment details were not found for an id, we will return a 404.
+
+- All request fields are required
+- Serialize enums as strings
+- Amount is an integer so we don't need to deal with minor currency units
+
+Things to implement:
+
+1. Process Payment
+
+- Validate request
+- Abstract business logic to a service
+- Implement call to Acquiring bank
+    - Creating the request and handling the response
+    - Use a singleton resilient HTTP client 
+- Return the correct response object for the result from the Acquiring bank
+
+2. Get Payment Details
+
+- Validate request
+- Handle creating/any BL logic around the response
+- Make the in-memory database thread-safe and also improve lookup speed
+
+3. Implement unit tests for each endpoint
+
+- Request validation tests
+- HTTP status code assertions
+
+4. Implement unit tests for validation
+
+Misc
+
+- Nothing mentioned about HTTP status codes for the responses
+    - Return 400s when request validation fails - provide problem details
+    - Return 500s for server error - using middleware
+    - Return 404s when payment details for an Id are not found
+
+- No requirements mentioned around handling dates and time zones
+- No requirements around how enums should be serialized. Whether with string or int value.
+
+- Amount has a type of integer which means that it will never have a decimal value and so there is never a case where I would need to represent the amount in minor currency unit?
+
+Future changes
+
+- Replace in-memory concurrent dictionary with a Redis cache for caching alongside a PostgreSQL database.
+- Implement authentication/authorization on
+- Implement Serilog throughout the application
+- Add a health check endpoint
+- Add an exception handler to handle 500s in a delicate way without providing errors

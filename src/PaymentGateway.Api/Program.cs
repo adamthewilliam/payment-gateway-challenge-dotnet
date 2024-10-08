@@ -1,19 +1,38 @@
+using System.Text.Json;
+
+using Microsoft.Extensions.Options;
+
+using PaymentGateway.Api.Config;
 using PaymentGateway.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddSingleton<PaymentsRepository>();
+builder.Services.Configure<AcquiringBankHttpClientSettings>(builder.Configuration.GetSection("AcquiringBankSettings"));
+
+// Registered as a Singleton
+builder.Services.AddHttpClient("AcquiringBank", (serviceProvider, client) =>
+{
+    var settings = serviceProvider.GetRequiredService<IOptions<AcquiringBankHttpClientSettings>>().Value;
+    client.BaseAddress = new Uri(settings.BaseUrl);
+})
+.SetHandlerLifetime(TimeSpan.FromMinutes(5));
+builder.Services.AddSingleton<IHttpClientService, HttpClientService>();
+
+// Options to serialize the Acquiring bank request according to the specification
+builder.Services.AddSingleton(new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower });
+
+builder.Services.AddSingleton<IPaymentsRepository, PaymentsRepository>();
+builder.Services.AddScoped<IPaymentsProcessingService, PaymentsProcessingService>();
+
+// Add SeriLog for HTTP request logging and for service/dependency logging
+// Add a Health check endpoint for the API
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
